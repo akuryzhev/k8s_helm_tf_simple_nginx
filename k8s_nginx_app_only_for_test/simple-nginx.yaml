@@ -1,0 +1,93 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simple-nginx-deploy
+  labels:
+    app: mysimplenginx
+    env: dev
+    owner: sensor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: simple-nginx
+  template:
+    metadata:
+      labels:
+        app: simple-nginx
+    spec:
+      containers:
+      - name: simple-nginx
+        image: sensor1986/simple-site
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        ports:
+        - containerPort: 80
+
+
+---
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: simple-autoscaling
+  labels:
+    owner: sensor
+    env: dev
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: simple-nginx-deploy
+  minReplicas: 1
+  maxReplicas: 4
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: AverageValue
+        averageValue: 128Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: simple-nginx-service
+  labels:
+    env: dev
+    owner: sensor
+spec:
+  selector:
+    app: simple-nginx
+  ports:
+    - port: 80
+      targetPort: 80
+  type: LoadBalancer
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: simple-nginx-ingress
+  namespace: default
+spec:
+  rules:
+  - host: sensor.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: simple-nginx
+            port:
+              number: 80

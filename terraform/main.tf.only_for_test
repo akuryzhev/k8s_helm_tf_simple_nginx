@@ -1,0 +1,97 @@
+#Created only for  tests
+#For creating k8s resources
+#----------------------------------------------
+terraform {
+  required_providers {
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = ">= 2.3.0"
+    }
+  }
+}
+
+provider "kubernetes" {
+  config_path    = "~/.kube/config"
+  config_context = "minikube"
+}
+#-----------------------------------------------
+locals {
+  simple_nginx_labels = {
+    App   = "simple-nginx"
+    Tier  = "website"
+    owner = "sensor"
+  }
+}
+#------------------------------------------------
+resource "kubernetes_namespace" "simple-nginx" {
+  metadata {
+    name   = "simple-nginx"
+    labels = local.simple_nginx_labels
+  }
+}
+
+resource "kubernetes_deployment" "simple-nginx" {
+  metadata {
+    name      = "simple-nginx"
+    namespace = kubernetes_namespace.simple-nginx.metadata.0.name
+  }
+  spec {
+    replicas = 1
+    selector {
+      match_labels = local.simple_nginx_labels
+    }
+    template {
+      metadata {
+        labels = local.simple_nginx_labels
+      }
+      spec {
+        container {
+          image = "sensor1986/simple-site"
+          name  = "simple-nginx"
+          port {
+            container_port = 80
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_service" "simple-nginx-service" {
+  metadata {
+    name      = "simple-nginx-service"
+    namespace = kubernetes_namespace.simple-nginx.metadata.0.name
+  }
+  spec {
+    selector = local.simple_nginx_labels
+    port {
+      port        = 80
+      target_port = 80
+      node_port   = 32032
+    }
+    type = "NodePort"
+  }
+}
+
+resource "kubernetes_ingress" "simple-nginx-ingress" {
+  metadata {
+    name      = "simple-nginx-ingress"
+    namespace = kubernetes_namespace.simple-nginx.metadata.0.name
+
+  }
+    spec {
+    rule {
+      host = "sensor.local"
+      http {
+        path {
+          backend {
+            service_name = "simple-nginx-service"
+            service_port = 80
+          }
+
+          path = "/"
+        }
+      }
+    }
+}
+}

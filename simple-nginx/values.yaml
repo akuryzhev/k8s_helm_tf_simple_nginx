@@ -1,0 +1,39 @@
+replicaCount: 1
+
+image:
+  repository: sensor1986/simple-site
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: "simple-nginx"
+
+deployment:
+ name: simple-nginx-deployment
+
+service:
+  name: simple-nginx-service
+  type: NodePort
+  port: 80
+  nodePort: 32032
+
+ingress:
+  enabled: true
+  className: ""
+  annotations: {}
+  hosts:
+    - host: sensor.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 75
+  targetMemoryUtilizationPercentage: 75
+
